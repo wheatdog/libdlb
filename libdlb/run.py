@@ -3,7 +3,8 @@ import sys
 import argparse
 from shutil import copy
 
-from libdlb.common.utils import mkdir_check, import_submodules, conda_env_export, CONDA_ENV_CONFIG, SRC_DIR
+from libdlb.common import Params
+from libdlb.common.utils import mkdir_check, import_submodules, conda_env_export, prepare_global_logging, CONDA_ENV_CONFIG, SRC_DIR
 from libdlb.exp import Exp
 
 def local_mod_src_preserve(new_base, added_modules):
@@ -50,12 +51,21 @@ def main():
                         default="",
                         help='override configuration')
 
+    parser.add_argument('-m', '--meta-info',
+                        type=str,
+                        default="",
+                        help='meta info in jsonnet format')
+
     parser.add_argument('-i', '--include-package',
                         required=True,
                         type=str,
                         action='append',
                         default=[],
                         help='additional packages to include')
+
+    parser.add_argument('-f', '--force-if-exist',
+                        action='store_true',
+                        help='force to save to the serialization dir even if it exists')
 
     args = parser.parse_args()
 
@@ -71,13 +81,20 @@ def main():
             exp_cls = result
             break
 
-    mkdir_check(args.serialization_dir)
+    mkdir_check(args.serialization_dir, args.force_if_exist)
 
     local_mod_src_preserve(os.path.join(args.serialization_dir, SRC_DIR), added_modules)
 
     conda_env_export(os.path.join(args.serialization_dir, CONDA_ENV_CONFIG))
 
-    exp_cls(args.param_path, args.serialization_dir, args.overrides).run()
+    #prepare_global_logging(args.serialization_dir, False)
+
+    params = Params.from_file(args.param_path, args.overrides)
+    meta_info = Params.from_file(None, args.meta_info)
+    meta_info['-e'] = args.experiment_class
+    exp_instance = exp_cls(params, args.serialization_dir, meta_info=meta_info)
+    exp_instance.run()
+    exp_instance.post_process()
 
 if __name__ == '__main__':
     main()

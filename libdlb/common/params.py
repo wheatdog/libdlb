@@ -372,11 +372,12 @@ class Params(MutableMapping):
         if ext_vars is None:
             ext_vars = {}
 
-        # redirect to cache, if necessary
-        params_file = cached_path(params_file)
         ext_vars = {**dict(os.environ), **ext_vars}
-
-        file_dict = json.loads(evaluate_file(params_file, ext_vars=ext_vars))
+        file_dict = {}
+        if params_file is not None:
+            # redirect to cache, if necessary
+            params_file = cached_path(params_file)
+            file_dict = json.loads(evaluate_file(params_file, ext_vars=ext_vars))
 
         overrides_dict = parse_overrides(params_overrides)
         param_dict = with_fallback(preferred=overrides_dict, fallback=file_dict)
